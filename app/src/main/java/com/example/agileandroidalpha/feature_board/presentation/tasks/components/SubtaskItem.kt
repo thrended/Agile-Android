@@ -1,0 +1,431 @@
+package com.example.agileandroidalpha.feature_board.presentation.tasks.components
+
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.Card
+import androidx.compose.material.ExperimentalMaterialApi
+import androidx.compose.material.Icon
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.RadioButtonChecked
+import androidx.compose.material.icons.filled.RadioButtonUnchecked
+import androidx.compose.material3.IconButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.core.graphics.ColorUtils
+import coil.compose.AsyncImage
+import com.example.agileandroidalpha.R
+import com.example.agileandroidalpha.feature_board.domain.model.Attachment
+import com.example.agileandroidalpha.feature_board.domain.model.Subtask
+import com.example.agileandroidalpha.ui.theme.Cobalt
+import com.example.agileandroidalpha.ui.theme.ColdFrontGreen
+import com.example.agileandroidalpha.ui.theme.DarkGray
+import com.example.agileandroidalpha.ui.theme.DarkSlate
+import com.example.agileandroidalpha.ui.theme.Grape
+import com.example.agileandroidalpha.ui.theme.LBGold
+import com.example.agileandroidalpha.ui.theme.LightGreen
+import com.example.agileandroidalpha.ui.theme.PaleYellow
+import com.example.agileandroidalpha.ui.theme.PurpleSage
+import com.example.agileandroidalpha.ui.theme.Shapes
+import com.example.agileandroidalpha.ui.theme.TiffanyBlue
+import com.example.agileandroidalpha.ui.theme.TropicalViolet
+import kotlin.math.roundToInt
+
+@OptIn(ExperimentalMaterialApi::class, ExperimentalFoundationApi::class)
+@Composable
+fun SubtaskItem(
+    idx: Int,
+    subtask: Subtask,
+    checked: Boolean,
+    modifier: Modifier = Modifier,
+    images: List<Attachment>? = null,
+    cRad: Dp = 5.dp,
+    cutoff: Dp = 15.dp,
+    onCheckboxClick: (Subtask, Boolean) -> Unit,
+    onClickedChange: (Subtask) -> Unit = {},
+    onDeleteClick: (Subtask) -> Unit,
+    onDraggedChange: (Subtask, String, Boolean) -> Unit,
+    onEditClick: (Subtask, Long) -> Unit
+){
+    Box(modifier) {
+        Canvas(modifier = modifier.matchParentSize()) {
+            val clipPath = Path().apply {
+                lineTo(size.width - cutoff.toPx(), 0f)
+                lineTo(size.width, cutoff.toPx())
+                lineTo(size.width, size.height)
+                lineTo(0f, size.height)
+                close()
+            }
+
+            clipPath(clipPath) {
+                drawRoundRect(
+                    color = Color(subtask.color),
+                    size = size,
+                    cornerRadius = CornerRadius(cRad.toPx())
+                )
+                drawRoundRect(
+                    color = Color(
+                        ColorUtils.blendARGB(subtask.color, TiffanyBlue.toArgb(), 0.5f)
+                    ),
+                    topLeft = Offset(size.width - cutoff.toPx(), -25f),
+                    size = Size(cutoff.toPx() + 25f, cutoff.toPx() + 25f),
+                    cornerRadius = CornerRadius(cRad.toPx())
+                )
+            }
+
+
+        }
+
+        BoxWithConstraints(
+            modifier = Modifier
+                .drawBehind {
+
+                }
+            //.background(color = ColdFrontGreen, shape = Shapes.medium)
+                ) {
+            val maxW = constraints.maxWidth * 0.75
+            val maxH = constraints.maxHeight
+            val minW = constraints.minWidth
+            val minH = constraints.minHeight
+            val isFixedW = constraints.hasFixedWidth
+            val isFixedH = constraints.hasFixedHeight
+            var preStatus by rememberSaveable { mutableStateOf(subtask.status)}
+            var offsetX by rememberSaveable { mutableStateOf(initBoxPos(maxW, subtask)) }
+            var offsetY by rememberSaveable { mutableStateOf(0f) }
+            var posX by rememberSaveable { mutableStateOf(0f) }
+            var posY by rememberSaveable { mutableStateOf(0f) }
+
+            Card(modifier = Modifier
+                .padding(16.dp)
+                .offset { IntOffset(offsetX.roundToInt(), offsetY.roundToInt()) }
+                .background(color = ColdFrontGreen, shape = Shapes.medium)
+                .pointerInput(Unit) {
+                    detectDragGestures { change, dragAmount ->
+                        change.consume()
+                        posX = offsetX
+                        posY = offsetY
+                        offsetX = processDragChange(posX, dragAmount.x, maxW, subtask)
+                        if (preStatus != subtask.status) {
+                            onDraggedChange(subtask, subtask.status, subtask.done)
+                            preStatus = subtask.status
+                        }
+                        offsetY += dragAmount.y
+                    }
+                }
+                .combinedClickable(
+                    onLongClick = { onClickedChange(subtask) }
+                ) {
+
+                },
+                onClick = {}
+
+            ) {
+                Column(modifier = Modifier
+                    .wrapContentSize()
+                    .background(
+//                        color = Color(
+//                            ColorUtils.blendARGB(
+//                                subtask.color, TiffanyBlue.toArgb(), 0.7f
+//                            )
+//                        ),
+                        color = statToColor(subtask),
+                        shape = Shapes.small
+                    )
+                    .padding(5.dp)
+
+                ) {
+                    Row(modifier = Modifier
+                        .fillMaxWidth(0.45f)
+                        .padding(start = 0.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Top) {
+                        Icon(
+                            modifier = Modifier
+                                .scale(0.65f)
+                                .offset(y = (-2).dp),
+                            imageVector = iconPri(subtask.priority),
+                            contentDescription = "Priority",
+                            tint = MaterialTheme.colors.onSurface
+                        )
+                        Text(
+                            text = subtask.status,
+                            color = Color(
+                                ColorUtils.blendARGB(
+                                    TropicalViolet.toArgb(), DarkGray.toArgb(), 0.5f)
+                            ),
+                            style = MaterialTheme.typography.body2,
+                            overflow = TextOverflow.Clip,
+                            softWrap = true,
+                            modifier = Modifier
+                                .scale(0.7f)
+                                .offset(12.dp, (-2).dp)
+                        )
+
+                        IconButton(
+                            onClick = {
+                                offsetX = moveBox(!checked, maxW)
+                                onCheckboxClick(subtask, !checked)
+                              },
+                            modifier = Modifier
+                                //.wrapContentSize()
+                                .offset(10.dp, (-12).dp)
+                                .statusBarsPadding()
+                                .padding(0.dp)
+                            //.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                modifier = Modifier.scale(0.65f),
+                                imageVector = if (subtask.done) Icons.Default.CheckCircle
+                                else if (subtask.status == "In Progress") Icons.Default.RadioButtonChecked
+                                else Icons.Default.RadioButtonUnchecked,
+                                contentDescription = "Toggle Complete",
+                                tint = MaterialTheme.colors.onSurface
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = if(subtask.cloned) "[CLONE] ${subtask.title}" else subtask.title,
+                        color = DarkSlate,
+                        onTextLayout ={
+
+                        },
+                        textDecoration = if (subtask.done) TextDecoration.LineThrough
+                                        else TextDecoration.None,
+                        style = MaterialTheme.typography.body2,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth(0.39f)
+                    )
+                    Text(
+                        text = subtask.desc,
+                        color = Grape,
+                        textDecoration = if (subtask.done) TextDecoration.LineThrough
+                        else TextDecoration.None,
+                        style = MaterialTheme.typography.caption,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth(0.39f)
+                            .combinedClickable(
+
+                            ) {
+
+                            },
+                    )
+                    Text(
+                        text = subtask.content,
+                        color = PurpleSage,
+                        textDecoration = if (subtask.done) TextDecoration.LineThrough
+                                        else TextDecoration.None,
+                        style = MaterialTheme.typography.caption,
+                        textAlign = TextAlign.Center,
+                        overflow = TextOverflow.Ellipsis,
+                        softWrap = true,
+                        maxLines = 1,
+                        modifier = Modifier
+                            .fillMaxWidth(0.39f)
+                            .combinedClickable(
+
+                            ) {
+
+                            },
+                    )
+                    Row(modifier = Modifier
+                        .fillMaxHeight(0.000001f)
+                        .fillMaxWidth(0.42f)
+                        .padding(0.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        IconButton(
+                            onClick = {onEditClick(subtask, subtask.subId!!)},
+                            modifier = Modifier
+                                //.wrapContentSize()
+                                .offset((-13).dp, 12.dp)
+                                .padding(start = 0.dp)
+                            //.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                modifier = Modifier
+                                    .scale(0.6f),
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Edit Subtask",
+                                tint = MaterialTheme.colors.onSurface
+                            )
+                        }
+                        if(!subtask.assUri.isNullOrBlank()) {       // Assignee online avatar
+                            AsyncImage(
+                                model = subtask.assUri,
+                                contentDescription = "Mini profile picture",
+                                modifier = Modifier
+                                    .size(15.dp)
+                                    .clip(CircleShape),
+                                    //.align(Alignment.BottomCenter),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(id = R.drawable.box_red)
+                            )
+                        }
+                        else{
+                            Text(
+                                text = subtask.assignee?.dropLast(
+                                    if (subtask.assignee!!.length > 10) subtask.assignee!!.length - 10 else 0
+                                )?: "No Assignee",   // If user doesn't have avatar
+                               // modifier = Modifier.align(Alignment.BottomCenter),
+                                style = MaterialTheme.typography.body2,
+                                color = Cobalt,
+                                maxLines = 1,
+                                overflow = TextOverflow.Clip,
+                                textAlign = TextAlign.Center,
+                                fontSize = 10.sp
+                            )
+                        }
+                        IconButton(
+                            onClick = { onDeleteClick(subtask) },
+                            modifier = Modifier
+                                //.wrapContentSize()
+                                .offset(13.dp, 12.dp)
+                                .padding(end = 0.dp)
+                            //.align(Alignment.TopEnd)
+                        ) {
+                            Icon(
+                                modifier = Modifier.scale(0.6f),
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = "Delete Subtask",
+                                tint = MaterialTheme.colors.onSurface
+                            )
+                        }
+
+                    }
+
+                }
+            }
+        }
+    }
+}
+
+fun moveBox(bool: Boolean, width: Double): Float {
+    if (bool) {
+        return (width * 0.9).toFloat()
+    }
+    return 0f
+}
+
+fun processDragChange(x: Float, dx: Float, width: Double, sub: Subtask): Float {
+    if (sub.status == "TO DO" && x + dx > width * 0.3) {
+        if (x + dx > width * 0.8) {
+            sub.status = "Done"
+            sub.done = true
+            return x + dx
+        }
+        sub.status = "In Progress"
+        sub.done = false
+        return x + dx
+
+    } else if (sub.status == "In Progress" && (x + dx < width * 0.15 || x + dx > width * 0.8) ) {
+        if (x + dx > width * 0.8) {
+            sub.status = "Done"
+            sub.done = true
+            return x + dx
+        }
+        sub.status = "TO DO"
+        sub.done = false
+        x + dx
+
+    } else if (sub.status == "Done" && (x + dx > width * -0.1 && x + dx < width * 0.8 )) {
+        if (x + dx > width * 0.25) {
+            sub.status = "In Progress"
+            sub.done = false
+            return x + dx
+        }
+        sub.status = "TO DO"
+        sub.done = false
+        x + dx
+    } else if (x + dx > width) {
+        sub.done = true
+        return (width * 0.9).toFloat()
+    } else if (x + dx < width * -0.2) {
+        sub.done = false
+        return 0f
+    }
+    return x + dx
+}
+
+fun initBoxPos(width: Double, sub: Subtask): Float {
+    if (sub.status == "Done") {
+        return (width * 0.9).toFloat()
+    }
+    if (sub.status == "In Progress") {
+        return (width * 0.4).toFloat()
+    }
+    return 0f
+}
+
+fun statToColor(subtask: Subtask): Color {
+    return when(subtask.status) {
+        "Done" -> {
+            LightGreen
+        }
+        "In Progress" -> {
+            Color(ColorUtils.blendARGB(
+                    ColdFrontGreen.toArgb(), LBGold.toArgb(), 0.7f)
+            )
+        }
+        "TO DO" -> {
+            TiffanyBlue
+        }
+        else -> {
+            PaleYellow
+        }
+    }
+}

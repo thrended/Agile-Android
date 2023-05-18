@@ -1,0 +1,325 @@
+    private fun createAccountWithEmail(email: String, password: String) {
+        auth.createUserWithEmailAndPassword(email, password)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Sign in success, update UI with the signed-in user's information
+                    Log.d(activityTAG, "createUserWithEmail:success")
+                    val user = auth.currentUser
+                    updateUI(user)
+                } else {
+                    // If sign in fails, display a message to the user.
+                    Log.w(activityTAG, "createUserWithEmail:failure", task.exception)
+                    Toast.makeText(baseContext, "Authentication failed.",
+                        Toast.LENGTH_SHORT).show()
+                    updateUI(null)
+                }
+            }
+    }
+
+    private fun getProviderData() {
+        // [START get_provider_data]
+        val user = Firebase.auth.currentUser
+        user?.let {
+            for (profile in it.providerData) {
+                // Id of the provider (ex: google.com)
+                val providerId = profile.providerId
+
+                // UID specific to the provider
+                val uid = profile.uid
+
+                // Name, email address, and profile photo Url
+                val name = profile.displayName
+                val email = profile.email
+                val photoUrl = profile.photoUrl
+            }
+        }
+        // [END get_provider_data]
+    }
+
+    private fun updateProfile() {
+        // [START update_profile]
+        val user = Firebase.auth.currentUser
+
+        val profileUpdates = userProfileChangeRequest {
+            displayName = "Jane Q. FireUser"
+            photoUri = Uri.parse("https://example.com/jane-q-user/profile.jpg")
+        }
+
+        user!!.updateProfile(profileUpdates)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Assignee profile updated.")
+                }
+            }
+        // [END update_profile]
+    }
+
+    private fun updateEmail() {
+        // [START update_email]
+        val user = Firebase.auth.currentUser
+
+        user!!.updateEmail("user@example.com")
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Assignee email address updated.")
+                }
+            }
+        // [END update_email]
+    }
+
+    private fun updatePassword() {
+        // [START update_password]
+        val user = Firebase.auth.currentUser
+        val newPassword = "SOME-SECURE-PASSWORD"
+
+        user!!.updatePassword(newPassword)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Assignee password updated.")
+                }
+            }
+        // [END update_password]
+    }
+
+    private fun sendEmailVerification() {
+        // [START send_email_verification]
+        val user = Firebase.auth.currentUser
+
+        user!!.sendEmailVerification()
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Email sent.")
+                }
+            }
+        // [END send_email_verification]
+    }
+
+    private fun sendEmailVerificationWithContinueUrl() {
+        // [START send_email_verification_with_continue_url]
+        val auth = Firebase.auth
+        val user = auth.currentUser!!
+
+        val url = "http://www.example.com/verify?uid=" + user.uid
+        val actionCodeSettings = ActionCodeSettings.newBuilder()
+            .setUrl(url)
+            .setIOSBundleId("com.example.ios")
+            // The default for this is populated with the current android package name.
+            .setAndroidPackageName("com.example.android", false, null)
+            .build()
+
+        user.sendEmailVerification(actionCodeSettings)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Email sent.")
+                }
+            }
+
+        // [END send_email_verification_with_continue_url]
+        // [START localize_verification_email]
+        auth.setLanguageCode("fr")
+        // To apply the default app language instead of explicitly setting it.
+        // auth.useAppLanguage()
+        // [END localize_verification_email]
+    }
+
+    private fun sendPasswordReset() {
+        // [START send_password_reset]
+        val emailAddress = "user@example.com"
+
+        Firebase.auth.sendPasswordResetEmail(emailAddress)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Email sent.")
+                }
+            }
+        // [END send_password_reset]
+    }
+
+    private fun differentiateLink(email: String) {
+
+        // [START auth_differentiate_link]
+        Firebase.auth.fetchSignInMethodsForEmail(email)
+            .addOnSuccessListener { result ->
+                val signInMethods = result.signInMethods!!
+                if (signInMethods.contains(EmailAuthProvider.EMAIL_PASSWORD_SIGN_IN_METHOD)) {
+                    // FireUser can sign in with email/password
+                } else if (signInMethods.contains(EmailAuthProvider.EMAIL_LINK_SIGN_IN_METHOD)) {
+                    // FireUser can sign in with email/link
+                }
+            }
+            .addOnFailureListener { exception ->
+                Log.e(activityTAG, "Error getting sign in methods for user", exception)
+            }
+        // [END auth_differentiate_link]
+    }
+    private fun linkAndMerge(credential: AuthCredential) {
+        val auth = Firebase.auth
+
+        // [START auth_link_and_merge]
+        val prevUser = auth.currentUser
+        auth.signInWithCredential(credential)
+            .addOnSuccessListener { result ->
+                val currentUser = result.user
+                // Merge prevUser and currentUser accounts and data
+                // ...
+            }
+            .addOnFailureListener {
+                // ...
+            }
+        // [END auth_link_and_merge]
+    }
+
+    private fun unlink(providerId: String) {
+
+        // [START auth_unlink]
+        Firebase.auth.currentUser!!.unlink(providerId)
+            .addOnCompleteListener(this) { task ->
+                if (task.isSuccessful) {
+                    // Auth provider unlinked from account
+                    // ...
+                }
+            }
+        // [END auth_unlink]
+    }
+
+    private fun buildActionCodeSettings() {
+        // [START auth_build_action_code_settings]
+        val actionCodeSettings = actionCodeSettings {
+            // URL you want to redirect back to. The domain (www.example.com) for this
+            // URL must be whitelisted in the Firebase Console.
+            url = "https://www.example.com/finishSignUp?cartId=1234"
+            // This must be true
+            handleCodeInApp = true
+            setIOSBundleId("com.example.ios")
+            setAndroidPackageName(
+                "com.example.android",
+                true, /* installIfNotAvailable */
+                "12" /* minimumVersion */)
+        }
+        // [END auth_build_action_code_settings]
+    }
+
+    private fun sendSignInLink(email: String, actionCodeSettings: ActionCodeSettings) {
+        // [START auth_send_sign_in_link]
+        Firebase.auth.sendSignInLinkToEmail(email, actionCodeSettings)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Email sent.")
+                }
+            }
+        // [END auth_send_sign_in_link]
+    }
+
+    private fun verifySignInLink() {
+        // [START auth_verify_sign_in_link]
+        val auth = Firebase.auth
+        val intent = intent
+        val emailLink = intent.data.toString()
+
+        // Confirm the link is a sign-in with email link.
+        if (auth.isSignInWithEmailLink(emailLink)) {
+            // Retrieve this from wherever you stored it
+            val email = "someemail@domain.com"
+
+            // The client SDK will parse the code from the link for you.
+            auth.signInWithEmailLink(email, emailLink)
+                .addOnCompleteListener { task ->
+                    if (task.isSuccessful) {
+                        Log.d(activityTAG, "Successfully signed in with email link!")
+                        val result = task.result
+                        // You can access the new user via result.getUser()
+                        // Additional user info profile *not* available via:
+                        // result.getAdditionalUserInfo().getProfile() == null
+                        // You can check if the user is new or existing:
+                        // result.getAdditionalUserInfo().isNewUser()
+                    } else {
+                        Log.e(activityTAG, "Error signing in with email link", task.exception)
+                    }
+                }
+        }
+        // [END auth_verify_sign_in_link]
+    }
+
+    private fun linkWithSignInLink(email: String, emailLink: String) {
+
+        // [START auth_link_with_link]
+        // Construct the email link credential from the current URL.
+        val credential = EmailAuthProvider.getCredentialWithLink(email, emailLink)
+
+        // Link the credential to the current user.
+        Firebase.auth.currentUser!!.linkWithCredential(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Successfully linked emailLink credential!")
+                    val result = task.result
+                    // You can access the new user via result.getUser()
+                    // Additional user info profile *not* available via:
+                    // result.getAdditionalUserInfo().getProfile() == null
+                    // You can check if the user is new or existing:
+                    // result.getAdditionalUserInfo().isNewUser()
+                } else {
+                    Log.e(activityTAG, "Error linking emailLink credential", task.exception)
+                }
+            }
+        // [END auth_link_with_link]
+    }
+
+    private fun reauthenticate() {
+        // [START reauthenticate]
+        val user = Firebase.auth.currentUser!!
+
+        // Get auth credentials from the user for re-authentication. The example below shows
+        // email and password credentials but there are multiple possible providers,
+        // such as GoogleAuthProvider or FacebookAuthProvider.
+        val credential = EmailAuthProvider
+            .getCredential("user@example.com", "password1234")
+
+        // Prompt the user to re-provide their sign-in credentials
+        user.reauthenticate(credential)
+            .addOnCompleteListener { Log.d(activityTAG, "Assignee re-authenticated.") }
+        // [END reauthenticate]
+    }
+
+    private fun reauthWithLink(email: String, emailLink: String) {
+
+        // [START auth_re-auth_with_link]
+        // Construct the email link credential from the current URL.
+        val credential = EmailAuthProvider.getCredentialWithLink(email, emailLink)
+
+        // Re-authenticate the user with this credential.
+        Firebase.auth.currentUser!!.reauthenticateAndRetrieveData(credential)
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    // FireUser is now successfully re-authenticated
+                } else {
+                    Log.e(activityTAG, "Error reauthenticating", task.exception)
+                }
+            }
+        // [END auth_re-auth_with_link]
+    }
+
+    private fun getGoogleCredentials() {
+        val googleIdToken = ""
+        // [START auth_google_cred]
+        val credential = GoogleAuthProvider.getCredential(googleIdToken, null)
+        // [END auth_google_cred]
+    }
+
+    private fun deleteUser() {
+        // [START delete_user]
+        val user = Firebase.auth.currentUser!!
+
+        user.delete()
+            .addOnCompleteListener { task ->
+                if (task.isSuccessful) {
+                    Log.d(activityTAG, "Assignee account deleted.")
+                }
+            }
+        // [END delete_user]
+    }
+
+    private fun signOut() {
+        // [START auth_sign_out]
+        Firebase.auth.signOut()
+        // [END auth_sign_out]
+    }
