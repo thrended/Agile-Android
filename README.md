@@ -1,5 +1,5 @@
 # Agile-Android
 Agile Android Project
 
-## Source Code Directory:
+## Source Code Directory
 Agile-Android/app/src/main/
